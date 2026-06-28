@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>工作流管理器</title>
+    <link rel="stylesheet" href="./manager.css">
+</head>
+<body>
+    <div class="container">
+        <section class="query-section">
+            <h2 class="section-title">工作流查询</h2>
+
+            <div class="row">
+                <label>ID查询：</label>
+                <input type="number" id="queryId" placeholder="输入ID，例如 1">
+                <div class="btn-group">
+                    <button id="queryBtn" class="btn btn-primary">开始管理</button>
+                </div>
+            </div>
+
+            <div class="row">
+                <label>选择工作流：</label>
+                <select id="idSelect">
+                    <option value="">-- 请选择 --</option>
+                </select>
+                <div class="btn-group">
+                    <button id="loadSelectBtn" class="btn">开始管理</button>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="section-title">工作流管理</h2>
+
+            <div class="row">
+                <label>ID：</label>
+                <input type="number" id="f_id" readonly class="readonly">
+            </div>
+            <div class="row">
+                <label>名称：</label>
+                <input type="text" id="f_name">
+            </div>
+            <div class="row">
+                <label>描述：</label>
+                <input type="text" id="f_description">
+            </div>
+            <div class="row">
+                <label>类型：</label>
+                <input type="text" id="f_type">
+            </div>
+            <div class="row">
+                <label>状态：</label>
+                <input type="text" id="f_status">
+            </div>
+            <div class="row">
+                <label>日志：</label>
+                <textarea id="f_log"></textarea>
+                <div class="hint">JSON 对象格式，例如 {"时间":["问题","逻辑更新"]}</div>
+            </div>
+            <div class="row">
+                <label>版本：</label>
+                <textarea id="f_version"></textarea>
+                <div class="hint">JSON 对象格式，例如 {"版本号":["名称","描述","时间"]}</div>
+            </div>
+            <div class="row">
+                <label>步骤：</label>
+                <textarea id="f_steps"></textarea>
+                <div class="hint">JSON 对象格式，例如 {"1":"步骤1","2":"步骤2"}</div>
+            </div>
+            <div class="row">
+                <label>底座：</label>
+                <textarea id="f_foundation"></textarea>
+                <div class="hint">JSON 数组格式，例如 ["2026-6","底座部署方案"]</div>
+            </div>
+            <div class="row">
+                <label>链接：</label>
+                <textarea id="f_link"></textarea>
+                <div class="hint">JSON 数组格式，例如 ["2026-6","执行环节部署方案"]</div>
+            </div>
+            <div class="row">
+                <label></label>
+                <button id="saveBtn" class="btn btn-primary" disabled>保存修改</button>
+            </div>
+        </section>
+
+        <div id="msg"></div>
+
+        <div class="footer-nav">
+            <a href="./index.html">返回主页</a>
+            <a href="./workflow.html">工作流库</a>
+            <a href="./organize.html">工作流运行组织平台</a>
+        </div>
+    </div>
+
+    <script>
+        const msgBox = document.getElementById('msg');
+        const idSelect = document.getElementById('idSelect');
+        const saveBtn = document.getElementById('saveBtn');
+
+        const simpleFields = ['id', 'name', 'description', 'type', 'status'];
+        const complexFields = ['log', 'version', 'steps', 'foundation', 'link'];
+        const fields = simpleFields.concat(complexFields);
+
+        function showMsg(text, type) {
+            msgBox.className = type || '';
+            msgBox.innerText = text;
+        }
+
+        function fillForm(item) {
+            simpleFields.forEach(f => {
+                const el = document.getElementById('f_' + f);
+                if (el) el.value = item[f] !== undefined ? item[f] : '';
+            });
+            complexFields.forEach(f => {
+                const el = document.getElementById('f_' + f);
+                if (el) {
+                    el.value = item[f] !== undefined ? JSON.stringify(item[f], null, 2) : '';
+                }
+            });
+            saveBtn.disabled = false;
+        }
+
+        function clearForm() {
+            fields.forEach(f => {
+                const el = document.getElementById('f_' + f);
+                if (el) el.value = '';
+            });
+            saveBtn.disabled = true;
+        }
+
+        async function loadIdList() {
+            try {
+                const res = await fetch('/getAll');
+                const data = await res.json();
+                idSelect.innerHTML = '<option value="">-- 请选择 --</option>';
+                data.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.id;
+                    opt.textContent = 'ID: ' + item.id + ' | ' + (item.name || '');
+                    idSelect.appendChild(opt);
+                });
+            } catch (e) {
+                showMsg('加载ID列表失败：' + e.message, 'error');
+            }
+        }
+
+        async function queryById(id) {
+            if (!id) { showMsg('请输入或选择ID', 'error'); return; }
+            try {
+                const res = await fetch('/getById?id=' + encodeURIComponent(id));
+                const result = await res.json();
+                if (result.success) {
+                    fillForm(result.data);
+                    showMsg('查询成功', 'success');
+                } else {
+                    clearForm();
+                    showMsg(result.message || '查询失败', 'error');
+                }
+            } catch (e) {
+                showMsg('查询失败：' + e.message, 'error');
+            }
+        }
+
+        document.getElementById('queryBtn').onclick = () => {
+            const id = document.getElementById('queryId').value;
+            queryById(id);
+        };
+
+        document.getElementById('loadSelectBtn').onclick = () => {
+            const id = idSelect.value;
+            queryById(id);
+        };
+
+        idSelect.onchange = () => {
+            const id = idSelect.value;
+            if (id) queryById(id);
+        };
+
+        saveBtn.onclick = async () => {
+            const payload = {};
+            let hasFormatError = false;
+            fields.forEach(f => {
+                const el = document.getElementById('f_' + f);
+                if (!el) return;
+                if (complexFields.includes(f)) {
+                    const raw = el.value.trim();
+                    if (raw === '') {
+                        payload[f] = null;
+                    } else {
+                        try {
+                            payload[f] = JSON.parse(raw);
+                        } catch (e) {
+                            showMsg('字段 [' + f + '] JSON 格式错误：' + e.message, 'error');
+                            hasFormatError = true;
+                        }
+                    }
+                } else {
+                    payload[f] = el.value;
+                }
+            });
+            if (hasFormatError) return;
+            if (!payload.id) { showMsg('ID不能为空', 'error'); return; }
+            try {
+                const res = await fetch('/updateById', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showMsg('修改成功：' + JSON.stringify(result.data, null, 2), 'success');
+                    loadIdList();
+                } else {
+                    showMsg(result.message || '修改失败', 'error');
+                }
+            } catch (e) {
+                showMsg('修改失败：' + e.message, 'error');
+            }
+        };
+
+        loadIdList();
+    </script>
+</body>
+</html>

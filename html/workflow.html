@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>已部署工作流库</title>
+    <link rel="stylesheet" href="./workflow.css">
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h2>已部署工作流库</h2>
+        </div>
+
+        <div class="toolbar">
+            <button id="readBtn" class="btn btn-primary">进入工作流库</button>
+        </div>
+
+        <div id="result" class="result"></div>
+
+        <div class="footer-nav">
+            <a href="./index.html">返回主页</a>
+            <a href="./manager.html">工作流管理器</a>
+            <a href="./organize.html">工作流运行组织平台</a>
+        </div>
+    </div>
+
+    <script>
+        const resultBox = document.getElementById('result');
+        document.getElementById('readBtn').onclick = async () => {
+            const res = await fetch('/getJson');
+            const data = await res.json();
+            resultBox.innerText = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+</html>
